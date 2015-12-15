@@ -62,7 +62,6 @@ class ReplacePropertiesResourcesPlugin implements Plugin<Project> {
 
                                     // Replaces all values on "ouputFile" with the ones contained in "environmentProperties"
                                     environmentProperties.each { propKey, propValue ->
-                                        println "$ouputFile $propKey $propValue" // FIXME delete
                                         p.ant.propertyfile(file: ouputFile) {
                                             entry(key: propKey, type: 'string', operation: '=', value: propValue)
                                         }
