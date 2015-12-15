@@ -37,15 +37,15 @@ test {
 afterReleaseBuild.dependsOn publishPlugins
 
 pluginBundle {
-    website = 'https://github.com/guillermo-varela/gradle-replace-tokens-resources-plugin'
-    vcsUrl = 'https://github.com/guillermo-varela/gradle-replace-tokens-resources-plugin'
+    website = 'https://github.com/guillermo-varela/gradle-replace-properties-resources-plugin'
+    vcsUrl = 'https://github.com/guillermo-varela/gradle-replace-properties-resources-plugin'
 
     plugins {
         replacePropertiesResources {
             id = 'com.blogspot.nombre-temp.replace.properties.resources'
-            displayName = 'Gradle Replace Tokens Resources'
-            description = 'Adds the ReplaceTokens feature from Ant to the processResources Gradle task'
-            tags = ['ReplaceTokens', 'processResources', 'environment', 'deployment environment', 'properties']
+            displayName = 'Gradle Replace Properties Resources'
+            description = 'Adds the propertyfile task from Ant to the processResources Gradle task'
+            tags = ['propertyfile', 'processResources', 'environment', 'deployment environment', 'properties']
         }
     }
 }
