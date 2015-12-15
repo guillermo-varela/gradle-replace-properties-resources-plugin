@@ -1,0 +1,51 @@
+buildscript {
+    repositories {
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+    dependencies {
+        classpath 'com.gradle.publish:plugin-publish-plugin:0.9.2'
+        classpath 'net.researchgate:gradle-release:2.3.4'
+    }
+}
+
+apply plugin: 'groovy'
+apply plugin: 'maven'
+apply plugin: 'eclipse'
+apply plugin: 'net.researchgate.release'
+apply plugin: 'com.gradle.plugin-publish'
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.9'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile gradleApi()
+    compile localGroovy()
+}
+
+test {
+    testLogging.showStandardStreams = true
+    testLogging.exceptionFormat = 'full'
+}
+
+afterReleaseBuild.dependsOn publishPlugins
+
+pluginBundle {
+    website = 'https://github.com/guillermo-varela/gradle-replace-tokens-resources-plugin'
+    vcsUrl = 'https://github.com/guillermo-varela/gradle-replace-tokens-resources-plugin'
+
+    plugins {
+        replacePropertiesResources {
+            id = 'com.blogspot.nombre-temp.replace.properties.resources'
+            displayName = 'Gradle Replace Tokens Resources'
+            description = 'Adds the ReplaceTokens feature from Ant to the processResources Gradle task'
+            tags = ['ReplaceTokens', 'processResources', 'environment', 'deployment environment', 'properties']
+        }
+    }
+}
