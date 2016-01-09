@@ -4,6 +4,8 @@ This plugin for Gradle adds the [PropertyFile] feature from Ant to the [processR
 
 It takes the project's resource files (by default in "src/main/resources") and replaces the values in ".properties" files with the ones from ".properties" files (with the same name and location) inside a specific folder in the project o from a system property, which allows to replace the values according to the [deployment environment].
 
+For files other than ".properties" they will also be copied and filtered using using the ReplaceTokens feature from Ant. Any text between "@" symbols (tokens) will be replaced with a value from a system property with the same key as the surrounded text.
+
 ### Example
 We can have a project with the following structure:
 ```sh
