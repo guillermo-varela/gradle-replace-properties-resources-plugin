@@ -14,14 +14,17 @@ We can have a project with the following structure:
 |   +---prod_1
 |   |       application.properties
 |   |       server.properties
+|   |       logback.xml
 |   |
 |   +---prod_2
 |   |       application.properties
 |   |       server.properties
+|   |       logback.xml
 |   |
 |   \---qa
 |           application.properties
 |           server.properties
+|           logback.xml
 |
 \---src
     \---main
@@ -30,32 +33,85 @@ We can have a project with the following structure:
         \---resources
                 application.properties
                 server.properties
+                logback.xml
 ```
 By default this plugin will look for the deployment environment folders inside the folder "**config**" on the project's root. Each subfolder (deployment environment) inside can have any name you like and can be as many as you need, the ones used here are just an example.
 
-Let's say we have this on "**src/main/resources/application.properties**"
+Let's say we have this on:
+"**src/main/resources/application.properties**"
 ```sh
 app.instance.name=Jetty-Server
 app.instance.number=1
 ```
+"**src/main/resources/config.json**"
+```json
+{"config": "test"}
+```
+"**src/main/resources/logback.xml**"
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <property name="LOG_PATH" value="/logs/" />
+...
+```
+
 "**config/prod_2/application.properties**"
 ```sh
 app.instance.number=2
 ```
+"**config/prod_2/config.json**"
+```json
+{"config": "prod"}
+```
+"**config/prod_2/logback.xml**"
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-Building the project using the command "**gradle build**" will generate the artifact with the following values on "**application.properties**":
+    <property name="LOG_PATH" value="@logPath@" />
+...
+```
+
+Building the project using the command "**gradle build**" will generate the artifact with the following values on:
+"**application.properties**":
 ```sh
 app.instance.name=Jetty-Server
 app.instance.number=1
 ```
+"**config.json**"
+```json
+{"config": "test"}
+```
+"**logback.xml**"
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <property name="LOG_PATH" value="/logs/" />
+...
+```
 Since no deployment environment was passed as parameter, the files remain unchanged allowing us to work with default values in a local development environment.
 
-Now building the project using the command "**gradle build -Denv=prod_2**" will generate the artifact with the following values on "**application.properties**":
+Now building the project using the command "**gradle build -Denv=prod_2 -DlogPath=/logs/test/**" will generate the artifact with the following values on:
+"**application.properties**":
 ```sh
 app.instance.name=Jetty-Server
 app.instance.number=2
 ```
-As expected "**app.instance.number**" is now equal to "**2**", from the file inside "**prod_2**". The property "app.instance.name" wasn't modified, since it's not specified on "**config/prod_2/application.properties**".
+"**config.json**"
+```json
+{"config": "prod"}
+```
+"**logback.xml**"
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <property name="LOG_PATH" value="/logs/test/" />
+...
+```
+As expected "**app.instance.number**" is now equal to "**2**", from the file inside "**prod_2**". The property "app.instance.name" wasn't modified, since it's not specified on "**config/prod_2/application.properties**". Also the file "**config.json**" was completelly replaced and on "**logback.xml**" the "**LOG_PATH**" property has the value indicated on the system property "**logPath**".
 
 But that's not all, the values can be overriden using system properties. Using the command "**gradle build -Denv=prod_2 -Dapp.instance.number=5**" will generate the artifact with the following values on "**application.properties**":
 ```sh
@@ -79,6 +135,9 @@ This way you could have a folder "environments" instead of "config" just with th
 ```sh
 configEnvironmentFolder=environments
 ```
+
+### How this plugin was developed
+Check: [http://nombre-temp.blogspot.com/2015/12/desarrollando-un-plugin-basico-de-grade.html](http://nombre-temp.blogspot.com/2015/12/desarrollando-un-plugin-basico-de-grade.html)
 
 License
 ----
