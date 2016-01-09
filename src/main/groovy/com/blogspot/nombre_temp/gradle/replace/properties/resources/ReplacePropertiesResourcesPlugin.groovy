@@ -1,12 +1,16 @@
 package com.blogspot.nombre_temp.gradle.replace.properties.resources
 
+import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 /**
  * This Gradle plugin replaces the values in ".properties" files inside the project's resources with values from files with the same name inside a different
- * name after the [processResources] Gradle task, which is used during the build process for projects with code to be executed in the [JVM] (like Java and Groovy).
+ * name after the "processResources" Gradle task, which is used during the build process for projects with code to be executed in the JVM (like Java and Groovy).
+ *
+ * For files other than ".properties" they will also be copied and filtered using using the ReplaceTokens feature from Ant.
+ * Any text between "@" symbols (tokens) will be replaced with a value from a system property with the same key as the surrounded text.
  */
 class ReplacePropertiesResourcesPlugin implements Plugin<Project> {
     @Override
@@ -39,6 +43,24 @@ class ReplacePropertiesResourcesPlugin implements Plugin<Project> {
                         println "***********************************************************"
                         println "Using environment: $environment"
                         println "***********************************************************"
+
+                        // Copy all resources files, except ".properties"
+                        p.fileTree(dir: "$configEnvironmentFolder/$environment" , exclude: '**/*.properties').each { file ->
+                            def fileRelativePath = environmentFolder.toURI().relativize( file.toURI() ).path
+
+                            p.sourceSets.each { source ->
+                                // Gets the corresponding file in the resources build folder
+                                def ouputFile = p.file("$source.output.resourcesDir/$fileRelativePath")
+                                if (ouputFile.exists()) {
+                                    p.copy {
+                                        into ouputFile.parent
+                                        from(file) {
+                                            filter(ReplaceTokens, tokens: System.properties)
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         p.fileTree(dir: "$configEnvironmentFolder/$environment" , include: '**/*.properties').each { file ->
                             def fileRelativePath = environmentFolder.toURI().relativize( file.toURI() ).path
