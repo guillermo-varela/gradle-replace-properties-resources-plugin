@@ -4,6 +4,7 @@ import org.apache.tools.ant.filters.ReplaceTokens
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 
 /**
  * This Gradle plugin replaces the values in ".properties" files inside the project's resources with values from files with the same name inside a different
@@ -13,80 +14,90 @@ import org.gradle.api.Project
  * Any text between "@" symbols (tokens) will be replaced with a value from a system property with the same key as the surrounded text.
  */
 class ReplacePropertiesResourcesPlugin implements Plugin<Project> {
+
+    private static final String processResourcesTaskName = 'processResources'
+    private static final String processTestResourcesTaskName = 'processTestResources'
+
     @Override
-    public void apply(Project project) {
+    void apply(Project project) {
 
         project.afterEvaluate { p ->
-            def processResourcesTask = p.tasks.findByName('processResources')
+            def processResourcesTask = p.tasks.findByName(processResourcesTaskName)
+            def processTestResourcesTask = p.tasks.findByName(processTestResourcesTaskName)
 
-            if (processResourcesTask == null) {
-                println "processResources task not found. Make sure to apply the plugin that has it before (for example 'java' or 'groovy')."
-            } else {
-                processResourcesTask.inputs.properties System.properties
-                def environment = System.properties.env
+            updatePropertiesFileWithEnvironment(processResourcesTask, p, processResourcesTaskName)
+            updatePropertiesFileWithEnvironment(processTestResourcesTask, p, processTestResourcesTaskName)
+        }
+    }
 
-                if (environment != null) {
-                    def configEnvironmentFolder = p.properties.configEnvironmentFolder ? p.properties.configEnvironmentFolder : 'config'
-                    def environmentFolder = p.file("$configEnvironmentFolder/$environment")
+    private void updatePropertiesFileWithEnvironment(Task resourceTask, Project p, String taskName) {
+        if (resourceTask == null) {
+            println "$taskName task not found. Make sure to apply the plugin that has it before (for example 'java' or 'groovy')."
+        } else {
+            resourceTask.inputs.properties System.properties
+            def environment = System.properties.env
 
-                    if (!p.file(configEnvironmentFolder).exists()) {
-                        throw new InvalidUserDataException("Configuration environment folder not found: $configEnvironmentFolder")
-                    }
-                    if (!environmentFolder.exists()) {
-                        throw new InvalidUserDataException("Environment folder not found: $configEnvironmentFolder/$environment")
-                    }
+            if (environment != null) {
+                def configEnvironmentFolder = p.properties.configEnvironmentFolder ? p.properties.configEnvironmentFolder : 'config'
+                def environmentFolder = p.file("$configEnvironmentFolder/$environment")
 
-                    // Executed only if the configuration files or the system properties changed from previous execution
-                    processResourcesTask.inputs.dir p.file("$configEnvironmentFolder/$environment")
+                if (!p.file(configEnvironmentFolder).exists()) {
+                    throw new InvalidUserDataException("Configuration environment folder not found: $configEnvironmentFolder")
+                }
+                if (!environmentFolder.exists()) {
+                    throw new InvalidUserDataException("Environment folder not found: $configEnvironmentFolder/$environment")
+                }
 
-                    processResourcesTask.doLast {
-                        println "***********************************************************"
-                        println "Using environment: $environment"
-                        println "***********************************************************"
+                // Executed only if the configuration files or the system properties changed from previous execution
+                resourceTask.inputs.dir p.file("$configEnvironmentFolder/$environment")
 
-                        // Copy all resources files, except ".properties"
-                        p.fileTree(dir: "$configEnvironmentFolder/$environment" , exclude: '**/*.properties').each { file ->
-                            def fileRelativePath = environmentFolder.toURI().relativize( file.toURI() ).path
+                resourceTask.doLast {
+                    println "***********************************************************"
+                    println "Using environment: $environment"
+                    println "***********************************************************"
 
-                            p.sourceSets.each { source ->
-                                // Gets the corresponding file in the resources build folder
-                                def ouputFile = p.file("$source.output.resourcesDir/$fileRelativePath")
-                                if (ouputFile.exists()) {
-                                    p.copy {
-                                        into ouputFile.parent
-                                        from(file) {
-                                            filter(ReplaceTokens, tokens: System.properties)
-                                        }
+                    // Copy all resources files, except ".properties"
+                    p.fileTree(dir: "$configEnvironmentFolder/$environment", exclude: '**/*.properties').each { file ->
+                        def fileRelativePath = environmentFolder.toURI().relativize(file.toURI()).path
+
+                        p.sourceSets.each { source ->
+                            // Gets the corresponding file in the resources build folder
+                            def ouputFile = p.file("$source.output.resourcesDir/$fileRelativePath")
+                            if (ouputFile.exists()) {
+                                p.copy {
+                                    into ouputFile.parent
+                                    from(file) {
+                                        filter(ReplaceTokens, tokens: System.properties)
                                     }
                                 }
                             }
                         }
+                    }
 
-                        p.fileTree(dir: "$configEnvironmentFolder/$environment" , include: '**/*.properties').each { file ->
-                            def fileRelativePath = environmentFolder.toURI().relativize( file.toURI() ).path
+                    p.fileTree(dir: "$configEnvironmentFolder/$environment", include: '**/*.properties').each { file ->
+                        def fileRelativePath = environmentFolder.toURI().relativize(file.toURI()).path
 
-                            p.sourceSets.each { source ->
-                                // Gets the corresponding file in the resources build folder
-                                def ouputFile = p.file("$source.output.resourcesDir/$fileRelativePath")
-                                if (ouputFile.exists()) {
-                                    def environmentProperties = new Properties()
+                        p.sourceSets.each { source ->
+                            // Gets the corresponding file in the resources build folder
+                            def ouputFile = p.file("$source.output.resourcesDir/$fileRelativePath")
+                            if (ouputFile.exists()) {
+                                def environmentProperties = new Properties()
 
-                                    file.withInputStream {
-                                        environmentProperties.load(it);
+                                file.withInputStream {
+                                    environmentProperties.load(it);
+                                }
+
+                                // Overwrites the values in the file with the ones given from command line arguments -Dkey
+                                System.properties.each { key, value ->
+                                    if (environmentProperties.containsKey(key)) {
+                                        environmentProperties.put(key, value)
                                     }
+                                }
 
-                                    // Overwrites the values in the file with the ones given from command line arguments -Dkey
-                                    System.properties.each { key, value ->
-                                        if (environmentProperties.containsKey(key)) {
-                                            environmentProperties.put(key, value)
-                                        }
-                                    }
-
-                                    // Replaces all values on "ouputFile" with the ones contained in "environmentProperties"
-                                    environmentProperties.each { propKey, propValue ->
-                                        p.ant.propertyfile(file: ouputFile) {
-                                            entry(key: propKey, type: 'string', operation: '=', value: propValue)
-                                        }
+                                // Replaces all values on "ouputFile" with the ones contained in "environmentProperties"
+                                environmentProperties.each { propKey, propValue ->
+                                    p.ant.propertyfile(file: ouputFile) {
+                                        entry(key: propKey, type: 'string', operation: '=', value: propValue)
                                     }
                                 }
                             }
